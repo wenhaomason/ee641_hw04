@@ -2,8 +2,9 @@
 Q-Iteration algorithm for solving MDPs.
 """
 
+from typing import Tuple
+
 import numpy as np
-from typing import Tuple, Optional
 from environment import GridWorldEnv
 
 
@@ -41,15 +42,27 @@ class QIteration:
             n_iterations: Number of iterations until convergence
         """
         # TODO: Initialize Q-function to zeros (shape: [n_states, n_actions])
+        q_values = np.zeros((self.n_states, self.n_actions), dtype=float)
+        n_iter = 0
         # TODO: Iterate until convergence:
-        #       - For each state-action pair:
-        #           - Compute updated Q-value using Bellman equation:
-        #             Q(s,a) = sum_s' P(s'|s,a) * [R(s,a,s') + gamma * max_a' Q(s',a')]
-        #       - Check convergence: max|Q_new - Q_old| < epsilon
-        #       - Update Q-function
+        for it in range(max_iterations):
+            n_iter = it + 1
+            new_q = np.copy(q_values)
+            # For each state-action pair:
+            for s in range(self.n_states):
+                # If terminal, keep Q(s, a) = 0 for all actions
+                if self.env.is_terminal(s):
+                    new_q[s, :] = 0.0
+                    continue
+                for a in range(self.n_actions):
+                    # Compute updated Q-value using Bellman equation:
+                    new_q[s, a] = self.bellman_update(s, a, q_values)
+            delta = float(np.max(np.abs(new_q - q_values)))
+            q_values = new_q
+            if delta < self.epsilon:
+                break
         # TODO: Return final Q-values and iteration count
-
-        raise NotImplementedError
+        return q_values, n_iter
 
     def bellman_update(self, state: int, action: int, q_values: np.ndarray) -> float:
         """
@@ -64,13 +77,20 @@ class QIteration:
             Updated Q-value for (s,a)
         """
         # TODO: Get transition probabilities P(s'|s,a)
+        if self.env.is_terminal(state):
+            return 0.0
+        trans = self.env.get_transition_prob(state, action)
+        total = 0.0
         # TODO: For each possible next state:
-        #       - Get reward R(s,a,s')
-        #       - Get max Q-value for next state: max_a' Q(s',a')
-        #       - Accumulate: prob * [reward + gamma * max_q_next]
+        for s_next, p in trans.items():
+            #       - Get reward R(s,a,s')
+            r = self.env.get_reward(state, action, s_next)
+            #       - Get max Q-value for next state: max_a' Q(s',a')
+            max_q_next = float(np.max(q_values[s_next]))
+            #       - Accumulate: prob * [reward + gamma * max_q_next]
+            total += p * (r + self.gamma * max_q_next)
         # TODO: Return updated Q-value
-
-        raise NotImplementedError
+        return float(total)
 
     def extract_policy(self, q_values: np.ndarray) -> np.ndarray:
         """
@@ -84,9 +104,9 @@ class QIteration:
         """
         # TODO: For each state:
         #       - Select action with maximum Q-value: argmax_a Q(s,a)
+        policy = np.argmax(q_values, axis=1).astype(np.int64)
         # TODO: Return policy array
-
-        raise NotImplementedError
+        return policy
 
     def extract_values(self, q_values: np.ndarray) -> np.ndarray:
         """
@@ -100,9 +120,9 @@ class QIteration:
         """
         # TODO: For each state:
         #       - Compute V(s) = max_a Q(s,a)
+        values = np.max(q_values, axis=1)
         # TODO: Return value function
-
-        raise NotImplementedError
+        return values
 
     def compute_bellman_error(self, q_values: np.ndarray) -> float:
         """
@@ -115,8 +135,12 @@ class QIteration:
             Maximum Bellman error across all state-action pairs
         """
         # TODO: For each state-action pair:
-        #       - Compute updated Q-value using Bellman update
-        #       - Calculate absolute difference from current Q-value
+        errors = []
+        for s in range(self.n_states):
+            for a in range(self.n_actions):
+                #       - Compute updated Q-value using Bellman update
+                updated = self.bellman_update(s, a, q_values)
+                #       - Calculate absolute difference from current Q-value
+                errors.append(abs(q_values[s, a] - updated))
         # TODO: Return maximum error
-
-        raise NotImplementedError
+        return float(np.max(errors)) if errors else 0.0

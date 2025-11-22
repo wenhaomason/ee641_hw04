@@ -2,8 +2,9 @@
 Value Iteration algorithm for solving MDPs.
 """
 
+from typing import Tuple
+
 import numpy as np
-from typing import Tuple, Optional
 from environment import GridWorldEnv
 
 
@@ -41,15 +42,29 @@ class ValueIteration:
             n_iterations: Number of iterations until convergence
         """
         # TODO: Initialize value function to zeros
+        values = np.zeros(self.n_states, dtype=float)
         # TODO: Iterate until convergence:
-        #       - For each state:
-        #           - Compute Q(s,a) for all actions using Bellman backup
-        #           - Set V(s) = max_a Q(s,a)
-        #       - Check convergence: max|V_new - V_old| < epsilon
-        #       - Update value function
+        n_iter = 0
+        for it in range(max_iterations):
+            n_iter = it + 1
+            new_values = np.copy(values)
+            #       - For each state:
+            for s in range(self.n_states):
+                #           - Compute Q(s,a) for all actions using Bellman backup
+                if self.env.is_terminal(s):
+                    new_values[s] = 0.0
+                else:
+                    q_vals = self.compute_q_values(s, values)
+                    #           - Set V(s) = max_a Q(s,a)
+                    new_values[s] = float(np.max(q_vals))
+            #       - Check convergence: max|V_new - V_old| < epsilon
+            delta = float(np.max(np.abs(new_values - values)))
+            values = new_values
+            #       - Update value function
+            if delta < self.epsilon:
+                break
         # TODO: Return final values and iteration count
-
-        raise NotImplementedError
+        return values, n_iter
 
     def compute_q_values(self, state: int, values: np.ndarray) -> np.ndarray:
         """
@@ -63,12 +78,19 @@ class ValueIteration:
             q_values: Array of Q(s,a) for each action
         """
         # TODO: For each action:
-        #       - Get transition probabilities P(s'|s,a)
-        #       - Compute expected value:
-        #           Q(s,a) = sum_s' P(s'|s,a) * [R(s,a,s') + gamma * V(s')]
+        q_values = np.zeros(self.n_actions, dtype=float)
+        for a in range(self.n_actions):
+            #       - Get transition probabilities P(s'|s,a)
+            trans = self.env.get_transition_prob(state, a)
+            q = 0.0
+            for s_next, p in trans.items():
+                #       - Compute expected value:
+                #           Q(s,a) = sum_s' P(s'|s,a) * [R(s,a,s') + gamma * V(s')]
+                r = self.env.get_reward(state, a, s_next)
+                q += p * (r + self.gamma * values[s_next])
+            q_values[a] = q
         # TODO: Return Q-values array
-
-        raise NotImplementedError
+        return q_values
 
     def extract_policy(self, values: np.ndarray) -> np.ndarray:
         """
@@ -81,11 +103,17 @@ class ValueIteration:
             policy: Array of optimal actions for each state
         """
         # TODO: For each state:
-        #       - Compute Q-values for all actions
-        #       - Select action with maximum Q-value
+        policy = np.zeros(self.n_states, dtype=np.int64)
+        for s in range(self.n_states):
+            #       - Compute Q-values for all actions
+            if self.env.is_terminal(s):
+                policy[s] = 0
+            else:
+                q_vals = self.compute_q_values(s, values)
+                #       - Select action with maximum Q-value
+                policy[s] = int(np.argmax(q_vals))
         # TODO: Return policy array
-
-        raise NotImplementedError
+        return policy
 
     def bellman_backup(self, state: int, values: np.ndarray) -> float:
         """
@@ -99,10 +127,12 @@ class ValueIteration:
             Updated value for state
         """
         # TODO: If terminal state, return 0
+        if self.env.is_terminal(state):
+            return 0.0
         # TODO: Compute Q-values for all actions
+        q_vals = self.compute_q_values(state, values)
         # TODO: Return maximum Q-value
-
-        raise NotImplementedError
+        return float(np.max(q_vals))
 
     def compute_bellman_error(self, values: np.ndarray) -> float:
         """
@@ -117,8 +147,11 @@ class ValueIteration:
             Maximum Bellman error across all states
         """
         # TODO: For each state:
-        #       - Compute optimal value using Bellman backup
-        #       - Calculate absolute difference from current value
+        errors = []
+        for s in range(self.n_states):
+            #       - Compute optimal value using Bellman backup
+            backed = self.bellman_backup(s, values)
+            #       - Calculate absolute difference from current value
+            errors.append(abs(values[s] - backed))
         # TODO: Return maximum error
-
-        raise NotImplementedError
+        return float(np.max(errors)) if errors else 0.0

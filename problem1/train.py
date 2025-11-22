@@ -2,13 +2,14 @@
 Training script for Value Iteration and Q-Iteration.
 """
 
-import numpy as np
 import argparse
 import json
 import os
+
+import numpy as np
 from environment import GridWorldEnv
-from value_iteration import ValueIteration
 from q_iteration import QIteration
+from value_iteration import ValueIteration
 
 
 def main():
@@ -27,22 +28,44 @@ def main():
     os.makedirs('results/visualizations', exist_ok=True)
 
     # TODO: Initialize environment with seed
+    env = GridWorldEnv(seed=args.seed)
     # TODO: Run Value Iteration
     #       - Create ValueIteration solver
+    vi_solver = ValueIteration(env, gamma=args.gamma, epsilon=args.epsilon)
     #       - Solve for optimal values
+    vi_values, vi_iters = vi_solver.solve(max_iterations=args.max_iter)
     #       - Extract policy
+    vi_policy = vi_solver.extract_policy(vi_values)
     #       - Save results
+    np.savez('results/value_function.npz', values=vi_values)
+    np.savez('results/vi_policy.npz', policy=vi_policy)
     # TODO: Run Q-Iteration
     #       - Create QIteration solver
+    qi_solver = QIteration(env, gamma=args.gamma, epsilon=args.epsilon)
     #       - Solve for optimal Q-values
+    qi_qvalues, qi_iters = qi_solver.solve(max_iterations=args.max_iter)
     #       - Extract policy and values
+    qi_policy = qi_solver.extract_policy(qi_qvalues)
+    qi_values = qi_solver.extract_values(qi_qvalues)
     #       - Save results
+    np.savez('results/q_function.npz', q_values=qi_qvalues)
+    np.savez('results/qi_policy.npz', policy=qi_policy)
     # TODO: Compare algorithms
     #       - Print convergence statistics
+    print(json.dumps({
+        "value_iteration_iterations": int(vi_iters),
+        "q_iteration_iterations": int(qi_iters)
+    }, indent=2))
     #       - Check if policies match
+    policies_match = bool(np.all(vi_policy == qi_policy))
     #       - Save comparison results
-
-    raise NotImplementedError
+    with open('results/comparison.json', 'w') as f:
+        json.dump({
+            "vi_iterations": int(vi_iters),
+            "qi_iterations": int(qi_iters),
+            "policies_match": policies_match
+        }, f, indent=2)
+    print(f"Policies match: {policies_match}")
 
 
 if __name__ == '__main__':
