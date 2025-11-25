@@ -1,7 +1,10 @@
 # EE 641 - Homework 4: Reinforcement Learning Foundations
 
 Name: Wenhao Shi
+
 USC email: wenhaos@usc.edu
+
+---
 
 Starter code for implementing dynamic programming and deep reinforcement learning algorithms.
 
